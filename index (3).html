@@ -1,0 +1,314 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>西餐點餐系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7.22.9/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const menu = {
+      salad: [
+        { name: "凱薩沙拉", price: 8 },
+        { name: "希臘沙拉", price: 9 },
+        { name: "卡布里沙拉", price: 10 },
+        { name: "華爾道夫沙拉", price: 9 },
+        { name: "科布沙拉", price: 11 }
+      ],
+      soup: [
+        { name: "番茄濃湯", price: 7 },
+        { name: "法式洋蔥湯", price: 8 },
+        { name: "蛤蜊濃湯", price: 9 },
+        { name: "蘑菇濃湯", price: 8 },
+        { name: "扁豆湯", price: 7 }
+      ],
+      appetizer: [
+        { name: "義式番茄麵包", price: 6 },
+        { name: "釀蘑菇", price: 7 },
+        { name: "鮮蝦雞尾酒", price: 9 },
+        { name: "炸魷魚圈", price: 8 },
+        { name: "莫札瑞拉條", price: 6 }
+      ],
+      main: [
+        { name: "烤鮭魚", price: 20 },
+        { name: "牛菲力", price: 25 },
+        { name: "雞肉帕瑪森", price: 18 },
+        { name: "豬排", price: 19 },
+        { name: "素食千層麵", price: 16 }
+      ],
+      dessert: [
+        { name: "起司蛋糕", price: 7 },
+        { name: "提拉米蘇", price: 8 },
+        { name: "巧克力熔岩蛋糕", price: 9 },
+        { name: "蘋果派", price: 7 },
+        { name: "焦糖布丁", price: 8 }
+      ]
+    };
+
+    const combos = [
+      {
+        name: "經典套餐",
+        items: ["凱薩沙拉", "番茄濃湯", "義式番茄麵包", "雞肉帕瑪森", "起司蛋糕"],
+        discount: 5
+      },
+      {
+        name: "海鮮饗宴",
+        items: ["科布沙拉", "蛤蜊濃湯", "鮮蝦雞尾酒", "烤鮭魚", "提拉米蘇"],
+        discount: 6
+      },
+      {
+        name: "素食盛宴",
+        items: ["希臘沙拉", "扁豆湯", "釀蘑菇", "素食千層麵", "蘋果派"],
+        discount: 4
+      },
+      {
+        name: "豪華饗宴",
+        items: ["卡布里沙拉", "法式洋蔥湯", "炸魷魚圈", "牛菲力", "焦糖布丁"],
+        discount: 7
+      }
+    ];
+
+    function App() {
+      const [stage, setStage] = useState("salad");
+      const [selections, setSelections] = useState({});
+      const [selectedOption, setSelectedOption] = useState(null);
+      const [showAnimation, setShowAnimation] = useState(false);
+      const [combo, setCombo] = useState(null);
+
+      const stages = ["salad", "soup", "appetizer", "main", "dessert"];
+      const stageNames = {
+        salad: "沙拉",
+        soup: "濃湯",
+        appetizer: "前菜",
+        main: "主菜",
+        dessert: "甜點"
+      };
+
+      const handleSelect = (item) => {
+        setSelectedOption(item);
+      };
+
+      const handleSubmit = () => {
+        if (!selectedOption) return;
+        const newSelections = { ...selections, [stage]: selectedOption };
+        setSelections(newSelections);
+        const currentIndex = stages.indexOf(stage);
+        if (currentIndex < stages.length - 1) {
+          setStage(stages[currentIndex + 1]);
+          setSelectedOption(null);
+        } else {
+          setShowAnimation(true);
+          setTimeout(() => {
+            setShowAnimation(false);
+            const selectedItems = Object.values(newSelections);
+            let bestCombo = combos.find(combo => 
+              combo.items.every(item => selectedItems.includes(item))
+            );
+            if (!bestCombo) {
+              bestCombo = {
+                name: "客製套餐",
+                items: selectedItems,
+                discount: 0
+              };
+            }
+            const totalPrice = selectedItems.reduce((sum, item) => {
+              for (let category in menu) {
+                const found = menu[category].find(dish => dish.name === item);
+                if (found) return sum + found.price;
+              }
+              return sum;
+            }, 0) - bestCombo.discount;
+            setCombo({ ...bestCombo, totalPrice });
+            setStage("summary");
+          }, 3000);
+        }
+      };
+
+      const handleConfirm = async () => {
+        const data = {
+          salad: selections.salad || "",
+          soup: selections.soup || "",
+          appetizer: selections.appetizer || "",
+          main: selections.main || "",
+          dessert: selections.dessert || "",
+          combo: combo?.name || "",
+          price: combo?.totalPrice || 0
+        };
+        try {
+          const response = await fetch("YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL", {
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: { "Content-Type": "application/json" }
+          });
+          if (response.ok) {
+            setStage("confirmed");
+          }
+        } catch (error) {
+          console.error("錯誤:", error);
+        }
+      };
+
+      const handleReset = () => {
+        setStage("salad");
+        setSelections({});
+        setSelectedOption(null);
+        setCombo(null);
+      };
+
+      if (showAnimation) {
+        return (
+          <div className="flex items-center justify-center h-screen bg-gray-100">
+            <div id="animation" className="text-2xl font-bold"></div>
+          </div>
+        );
+      }
+
+      if (stage === "confirmed") {
+        return (
+          <div className="flex items-center justify-center h-screen bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+              <h2 className="text-2xl font-bold mb-4">點餐完成！</h2>
+              <p>感謝您的訂單。</p>
+              <button
+                onClick={handleReset}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                再次點餐
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+            <h2 className="text-2xl font-bold mb-4">
+              {stage === "summary" ? "您的訂單摘要" : `選擇您的${stageNames[stage]}`}
+            </h2>
+            {stage !== "summary" ? (
+              <div className="grid grid-cols-1 gap-4">
+                {menu[stage].map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelect(item.name)}
+                    className={`p-4 rounded-lg cursor-pointer flex items-center space-x-4 ${
+                      selectedOption === item.name
+                        ? "bg-yellow-300 border-2 border-yellow-500"
+                        : "bg-gray-100 opacity-70 hover:bg-gray-200"
+                    }`}
+                  >
+                    <div className="w-16 h-16 bg-gray-300 rounded"></div>
+                    <span>{item.name}</span>
+                  </div>
+                ))}
+                <button
+                  onClick={handleSubmit}
+                  disabled={!selectedOption}
+                  className={`mt-4 px-4 py-2 rounded ${
+                    selectedOption ? "bg-blue-500 text-white hover:bg-blue-600" : "bg-gray-300 text-gray-500"
+                  }`}
+                >
+                  提交
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-xl font-semibold mb-2">推薦套餐：{combo.name}</h3>
+                <ul className="list-disc pl-5 mb-4">
+                  {Object.entries(selections).map(([category, item]) => (
+                    <li key={category}>{stageNames[category]}：{item}</li>
+                  ))}
+                </ul>
+                <p className="text-lg font-bold">總價：${combo.totalPrice}</p>
+                <div className="mt-4 flex space-x-4">
+                  <button
+                    onClick={handleConfirm}
+                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  >
+                    確認點餐
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    重新選擇
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+
+    // p5.js 動畫
+    function setup() {
+      if (document.getElementById("animation")) {
+        let cnv = createCanvas(400, 100);
+        cnv.parent("animation");
+        textAlign(CENTER, CENTER);
+        textSize(24);
+      }
+    }
+
+    function draw() {
+      if (document.getElementById("animation")) {
+        background(255);
+        fill(0);
+        text("餐點送單中", width / 2, height / 2);
+      }
+    }
+  </script>
+</body>
+</html>
