@@ -182,7 +182,7 @@
           price: combo?.totalPrice || 0
         };
         try {
-          const response = await fetch("YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL", {
+          const response = await fetch("https://script.google.com/macros/s/AKfycbzIiIvTUbcLeZlaJT6dOSA-BaNvOKT4Nz7pux3tWjCO-fmLIBKJISvBYh3XTkrJ3e2v/exec", {
             method: "POST",
             body: JSON.stringify(data),
             headers: { "Content-Type": "application/json" }
