@@ -43,14 +43,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>西餐點餐系統</title>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7.22.9/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="/output.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    window.onerror = function (msg, url, line) {
+      console.error("錯誤: " + msg + "\n行數: " + line);
+      document.getElementById("root").innerHTML = "<h1>載入錯誤，請檢查控制台</h1>";
+    };
+  </script>
   <script type="text/babel">
     const { useState, useEffect } = React;
 
@@ -182,7 +188,7 @@
           price: combo?.totalPrice || 0
         };
         try {
-          const response = await fetch("https://script.google.com/macros/s/AKfycbzIiIvTUbcLeZlaJT6dOSA-BaNvOKT4Nz7pux3tWjCO-fmLIBKJISvBYh3XTkrJ3e2v/exec", {
+          const response = await fetch("YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL", {
             method: "POST",
             body: JSON.stringify(data),
             headers: { "Content-Type": "application/json" }
@@ -292,7 +298,6 @@
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<App />);
 
-    // p5.js 動畫
     function setup() {
       if (document.getElementById("animation")) {
         let cnv = createCanvas(400, 100);
